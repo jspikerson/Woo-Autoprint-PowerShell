@@ -17,7 +17,6 @@ A PowerShell 7 script that watches your WooCommerce store and prints **packing s
 ## Table of Contents
 
 - [Requirements](#requirements)  
-- [Folder Layout](#folder-layout)  
 - [Setup](#setup)  
 - [Configuration](#configuration)  
 - [First Run](#first-run)  
@@ -39,44 +38,19 @@ A PowerShell 7 script that watches your WooCommerce store and prints **packing s
 
 ---
 
-## Folder Layout
-
-your-repo/
-├─ print-woo.ps1 # the script
-├─ README.md
-├─ .gitignore
-└─ (created at runtime)
-├─ woo-cred.xml # encrypted creds (per Windows user)
-├─ woo-print-state.json # remembers last printed order id
-└─ printed/
-├─ order-1234.html
-└─ order-1234.pdf
-
-
----
-
 ## Setup
 
 1. **Clone this repo** (or copy the script into your repo/folder).
 
 2. **Edit the config block** at the top of `print-woo.ps1`:
 
-   '''powershell
-   # CONFIG — Edit these
-   $Store           = 'https://yourstore.com'  # no trailing slash
-   $StatusesToPrint = @('processing')
-   $PrinterName     = $null                    # or 'Your Printer Name'
-   $LogoPath        = $null                    # optional PNG for your logo
-   $PageSize        = 'Letter'                 # or 'A4'
+3. Create Woo API keys WooCommerce → Settings → Advanced → REST API → Add key
 
-3. Create Woo API keys
-WooCommerce → Settings → Advanced → REST API → Add key
+4. Choose a user with access to orders (Shop Manager or Admin)
 
-Choose a user with access to orders (Shop Manager or Admin)
+5. Permissions: Read (or Read/Write if you plan to extend later)
 
-Permissions: Read (or Read/Write if you plan to extend later)
-
-Copy Consumer key (ck_...) and Consumer secret (cs_...)
+6. Copy Consumer key (ck_...) and Consumer secret (cs_...)
 
 ## First Run
 
@@ -146,11 +120,11 @@ Set $PrinterName in the config (or leave $null to use the default printer).
 You can keep both implementations: prefer Sumatra when present, fallback to shell printing otherwise.
 
 ## Quick Commands
-# First run (print existing orders once)
+\# First run (print existing orders once)
 pwsh -File ".\print-woo.ps1" -Backlog
 
-# Regular run (only new orders)
+\# Regular run (only new orders)
 pwsh -File ".\print-woo.ps1"
 
-# Allow local scripts, if needed
+\# Allow local scripts, if needed
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
