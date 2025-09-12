@@ -1,4 +1,8 @@
-param([switch]$Backlog)
+param(
+  [switch]$Backlog,
+  [switch]$ReprintLast
+)
+
 
 # =========================
 # CONFIG — Edit these
@@ -10,11 +14,6 @@ $LogoPath        = $Null	# e.g. Join-Path $PSScriptRoot 'logo.png'
 $PageSize        = 'Letter'	# maybe 'A4'?
 $SumatraPath    = Join-Path $PSScriptRoot 'SumatraPDF.exe' #Change to point to SumatraPDF executable
 $PrintSettings  = 'paper=letter,duplex,long-edge' # Alternative: $PrintSettings = 'paper=a4,scaling=noscale'
-
-
-
-
-
 
 # Paths
 $CredPath  = Join-Path $PSScriptRoot 'woo-cred.xml'
@@ -245,6 +244,22 @@ function Get-PackingSlipHtml {
 
   $billingHtml  = Get-AddressHtml -a $Order.billing  -Title 'BILL TO'
   $shippingHtml = Get-AddressHtml -a $Order.shipping -Title 'SHIP TO'
+  
+	# Append shipping method(s) to the SHIP TO box
+	$shipTitles = @()
+	if ($Order.shipping_lines -and $Order.shipping_lines.Count -gt 0) {
+	  foreach ($sl in $Order.shipping_lines) {
+		if ($sl.PSObject.Properties.Name -contains 'method_title' -and $sl.method_title) {
+		  $shipTitles += [string]$sl.method_title
+		}
+	  }
+	}
+	$shipTitles = $shipTitles | Where-Object { $_ } | Select-Object -Unique
+	if ($shipTitles.Count -gt 0) {
+	  $joined = ($shipTitles | ForEach-Object { $enc::HtmlEncode($_) }) -join ', '
+	  $shippingHtml += "`n<div style='margin-top:6px;'><span style='font-weight:600'>Method:</span> $joined</div>"
+	}
+
 
   # Build item rows (Qty | Item | Shipped | BO) and show _pao_ids under the name
   $rows = foreach ($li in $Order.line_items) {
@@ -361,11 +376,23 @@ function Get-PackingSlipHtml {
 function Save-PrintState($state) { $state | ConvertTo-Json | Set-Content -Encoding UTF8 $StatePath }
 
 function Load-PrintState {
-  param([switch]$Backlog)
+  param(
+    [switch]$Backlog,        # existing behavior: start from 0 (print everything)
+    [switch]$IncludeLast     # NEW: include the previously printed id in next run
+  )
+
+  # If we already have state and we're not doing a backlog run, return it (optionally stepped back by 1)
   if ((Test-Path $StatePath) -and -not $Backlog) {
-    try { return Get-Content $StatePath | ConvertFrom-Json } catch {}
+    try {
+      $s = Get-Content $StatePath | ConvertFrom-Json
+      if ($IncludeLast -and $s -and ($s.PSObject.Properties.Name -contains 'LastId')) {
+        $prev = [int]$s.LastId
+        # Decrement by 1 so the > LastId filter will include the previous id
+        return [pscustomobject]@{ LastId = [Math]::Max(0, $prev - 1) }
+      }
+      return $s
+    } catch {}
   }
-  if ($Backlog) { return [pscustomobject]@{ LastId = 0 } }
 
   # Seed: skip history on first run (start from newest existing)
   $ck = $Cred.UserName; $cs = $Cred.GetNetworkCredential().Password
@@ -406,7 +433,7 @@ function Get-WooSinceId {
 # =========================
 # MAIN
 # =========================
-$state = Load-PrintState -Backlog:$Backlog
+$state = Load-PrintState -Backlog:$Backlog -IncludeLast:$ReprintLast
 $new   = Get-WooSinceId -LastId $state.LastId -Statuses $StatusesToPrint
 
 if ($new.Count -eq 0) {

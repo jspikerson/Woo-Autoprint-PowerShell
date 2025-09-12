@@ -1,3 +1,4 @@
+@ -1,130 +0,0 @@
 # WooCommerce Auto-Print Packing Slips (PowerShell 7)
 
 A PowerShell 7 script that watches your WooCommerce store and prints **packing slips** for new orders. Each slip is rendered as **HTML → PDF** (via Edge/Chrome headless) and sent to your printer.
