@@ -344,7 +344,7 @@ function Get-PackingSlipHtml {
   </div>
 
   <div class="two-col">
-    <div class="box">$billingHtml</div>
+    <!-- <div class="box">$billingHtml</div> -->
     <div class="box">$shippingHtml</div>
   </div>
 
@@ -376,25 +376,25 @@ function Get-PackingSlipHtml {
 function Save-PrintState($state) { $state | ConvertTo-Json | Set-Content -Encoding UTF8 $StatePath }
 
 function Load-PrintState {
-  param(
-    [switch]$Backlog,        # existing behavior: start from 0 (print everything)
-    [switch]$IncludeLast     # NEW: include the previously printed id in next run
-  )
+  param([switch]$Backlog, [switch]$IncludeLast)
 
-  # If we already have state and we're not doing a backlog run, return it (optionally stepped back by 1)
-  if ((Test-Path $StatePath) -and -not $Backlog) {
+  # Backlog means: ignore saved state and reprint everything matching $StatusesToPrint
+  if ($Backlog) {
+    return [pscustomobject]@{ LastId = 0 }
+  }
+
+  if ((Test-Path $StatePath)) {
     try {
       $s = Get-Content $StatePath | ConvertFrom-Json
       if ($IncludeLast -and $s -and ($s.PSObject.Properties.Name -contains 'LastId')) {
         $prev = [int]$s.LastId
-        # Decrement by 1 so the > LastId filter will include the previous id
         return [pscustomobject]@{ LastId = [Math]::Max(0, $prev - 1) }
       }
       return $s
     } catch {}
   }
 
-  # Seed: skip history on first run (start from newest existing)
+  # First run (non-backlog): seed to newest to avoid printing history
   $ck = $Cred.UserName; $cs = $Cred.GetNetworkCredential().Password
   $seed = "$Base/orders?per_page=1&order=desc&orderby=id&status=$([string]::Join(',', $StatusesToPrint))&consumer_key=$ck&consumer_secret=$cs"
   $latest = $null
